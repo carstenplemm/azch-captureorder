@@ -14,7 +14,7 @@ spec:
       spec:
         containers:
         - name: captureorder
-          image: clemmopenhack.azurecr.io/captureorder:cb1 # replace with your own repository. Due to a bug, leave the :placeholdertag tag in there to allow the pipeline to replace it
+          image: clemmopenhack.azurecr.io/captureorder:cb1
           imagePullPolicy: Always
           readinessProbe:
             httpGet:
@@ -26,14 +26,16 @@ spec:
               path: /healthz
           resources:
             requests:
-              memory: "64Mi"
+              memory: "128Mi"
               cpu: "100m"
             limits:
-              memory: "128Mi"
+              memory: "256Mi"
               cpu: "500m"
           env:
           - name: TEAMNAME
-            value: 'team-azch' # will be patched at deployment time by value of 'teamName' in the variable group
+            value: "team-azch"
+          #- name: CHALLENGEAPPINSIGHTS_KEY # uncomment and set value only if you've been provided a key
+          #  value: "" # uncomment and set value only if you've been provided a key
           - name: MONGOHOST
             valueFrom:
               secretKeyRef:
@@ -44,10 +46,24 @@ spec:
               secretKeyRef:
                 name: mongodb
                 key: mongoUser
-          - name: MONGOPASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: mongodb
-                key: mongoPassword
           ports:
           - containerPort: 8080
+          volumeMounts:
+          - name: mongosecret
+            mountPath: /kvmnt
+            readOnly: true
+        volumes:
+        - name: mongosecret
+          flexVolume:
+            driver: "azure/kv"
+            secretRef:
+              name: kvcreds
+            options:
+              usepodidentity: "false"
+              keyvaultname: clemmopenhack
+              keyvaultobjectnames: mongo-password # Name of Key Vault secret
+              keyvaultobjecttypes: secret
+              keyvaultobjectversions: ""     # [OPTIONAL] list of KeyVault object versions (semi-colon separated), will get latest if empty
+              resourcegroup: openhack
+              subscriptionid: 04b03cb0-5592-47d6-99e1-d52db380159c
+              tenantid: 750a42d2-278c-4e3b-8485-270118e5d56c
